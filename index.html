@@ -25,12 +25,27 @@ input.addEventListener("change",async(e)=>{
   const arrayBuffer=await file.arrayBuffer();
   const midi=new Midi(arrayBuffer);
 
-  let notes=midi.tracks[0].notes;
+  // デバッグ用（コンソールから見れる）
+  window.midi=midi;
+  console.log("tracks:",midi.tracks);
 
-  // ソート
+  // ---- 全トラックからノート取得 ----
+  let notes=[];
+  for(const track of midi.tracks){
+    for(const note of track.notes){
+      notes.push(note);
+    }
+  }
+
+  if(notes.length===0){
+    output.value="ノートが見つからない（MIDI形式を確認）";
+    return;
+  }
+
+  // ---- ソート ----
   notes.sort((a,b)=>a.time-b.time);
 
-  // ---- 最高音抽出 ----
+  // ---- 同時音まとめて最高音抽出 ----
   const EPS=0.02;
   let groups=[];
   let current=[];
@@ -66,17 +81,23 @@ input.addEventListener("change",async(e)=>{
   let prevEnd=0;
 
   for(const note of filtered){
+    // 休符
     if(note.time>prevEnd){
       let gap=note.time-prevEnd;
       let val=Math.round(gap*4);
-      if(val>0)res.push(`r:${val}`);
+      if(val>0){
+        res.push(`r:${val}`);
+      }
     }
 
+    // 音名
     let name=note.name.toLowerCase();
-    let val=Math.round(note.duration*4);
-    if(val<=0)val=1;
+
+    // 長さ（最低1保証）
+    let val=Math.max(1,Math.round(note.duration*4));
 
     res.push(`${name}:${val}`);
+
     prevEnd=note.time+note.duration;
   }
 
