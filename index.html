@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>MIDI → 文字列変換</title>
+</head>
+<body>
+
+<h2>MIDI → 文字列変換（最高音抽出）</h2>
+
+<input type="file" id="file">
+<br><br>
+<textarea id="output" rows="10" cols="80"></textarea>
+
+<script type="module">
+import { Midi } from "https://cdn.jsdelivr.net/npm/@tonejs/midi@2.0.27/+esm";
+
+const input=document.getElementById("file");
+const output=document.getElementById("output");
+
+input.addEventListener("change",async(e)=>{
+  const file=e.target.files[0];
+  if(!file)return;
+
+  const arrayBuffer=await file.arrayBuffer();
+  const midi=new Midi(arrayBuffer);
+
+  let notes=midi.tracks[0].notes;
+
+  // ソート
+  notes.sort((a,b)=>a.time-b.time);
+
+  // ---- 最高音抽出 ----
+  const EPS=0.02;
+  let groups=[];
+  let current=[];
+
+  for(const note of notes){
+    if(current.length===0){
+      current.push(note);
+      continue;
+    }
+
+    if(Math.abs(note.time-current[0].time)<EPS){
+      current.push(note);
+    }else{
+      groups.push(current);
+      current=[note];
+    }
+  }
+  if(current.length)groups.push(current);
+
+  let filtered=[];
+  for(const g of groups){
+    let best=g[0];
+    for(const note of g){
+      if(note.midi>best.midi){
+        best=note;
+      }
+    }
+    filtered.push(best);
+  }
+
+  // ---- 出力 ----
+  let res=[];
+  let prevEnd=0;
+
+  for(const note of filtered){
+    if(note.time>prevEnd){
+      let gap=note.time-prevEnd;
+      let val=Math.round(gap*4);
+      if(val>0)res.push(`r:${val}`);
+    }
+
+    let name=note.name.toLowerCase();
+    let val=Math.round(note.duration*4);
+    if(val<=0)val=1;
+
+    res.push(`${name}:${val}`);
+    prevEnd=note.time+note.duration;
+  }
+
+  output.value=res.join(" ");
+});
+</script>
+
+</body>
+</html>
