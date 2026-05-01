@@ -100,8 +100,7 @@ input.addEventListener("change",async(e)=>{
 
     prevEnd=note.time+note.duration;
   }
-
-  output.value=res.join(" ");
+  output.value="[" + res.map(x=>`'${x}'`).join(", ") + "]";
 });
 </script>
 
