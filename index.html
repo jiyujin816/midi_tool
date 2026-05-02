@@ -8,8 +8,14 @@
 
 <h2>MIDI → 文字列変換（最高音抽出）</h2>
 
-<input type="file" id="file">
-<br><br>
+<input type="file" id="file"><br><br>
+
+<!-- EPS入力 -->
+EPS: <input type="number" id="eps" value="0.02" step="0.01"><br><br>
+
+<!-- 最大音数 -->
+最大音数: <input type="number" id="limit" value="1000"><br><br>
+
 <textarea id="output" rows="10" cols="80"></textarea>
 
 <script type="module">
@@ -17,6 +23,8 @@ import { Midi } from "https://cdn.jsdelivr.net/npm/@tonejs/midi@2.0.27/+esm";
 
 const input=document.getElementById("file");
 const output=document.getElementById("output");
+const epsInput=document.getElementById("eps");
+const limitInput=document.getElementById("limit");
 
 input.addEventListener("change",async(e)=>{
   const file=e.target.files[0];
@@ -25,7 +33,7 @@ input.addEventListener("change",async(e)=>{
   const arrayBuffer=await file.arrayBuffer();
   const midi=new Midi(arrayBuffer);
 
-  // デバッグ用（コンソールから見れる）
+  // デバッグ
   window.midi=midi;
   console.log("tracks:",midi.tracks);
 
@@ -38,15 +46,18 @@ input.addEventListener("change",async(e)=>{
   }
 
   if(notes.length===0){
-    output.value="ノートが見つからない（MIDI形式を確認）";
+    output.value="ノートが見つからない";
     return;
   }
 
   // ---- ソート ----
   notes.sort((a,b)=>a.time-b.time);
 
+  // ---- 入力値取得 ----
+  const EPS=parseFloat(epsInput.value)||0.02;
+  const LIMIT=parseInt(limitInput.value)||Infinity;
+
   // ---- 同時音まとめて最高音抽出 ----
-  const EPS=0.02;
   let groups=[];
   let current=[];
 
@@ -76,12 +87,15 @@ input.addEventListener("change",async(e)=>{
     filtered.push(best);
   }
 
+  // ---- 最大音数制限 ----
+  filtered=filtered.slice(0,LIMIT);
+
   // ---- 出力 ----
   let res=[];
   let prevEnd=0;
 
   for(const note of filtered){
-    // 休符
+    // 休符処理
     if(note.time>prevEnd){
       let gap=note.time-prevEnd;
       let val=Math.round(gap*4);
@@ -90,7 +104,7 @@ input.addEventListener("change",async(e)=>{
       }
     }
 
-    // 音名
+    // 音名（小文字化）
     let name=note.name.toLowerCase();
 
     // 長さ（最低1保証）
@@ -100,6 +114,7 @@ input.addEventListener("change",async(e)=>{
 
     prevEnd=note.time+note.duration;
   }
+
   output.value="[" + res.map(x=>`'${x}'`).join(", ") + "]";
 });
 </script>
